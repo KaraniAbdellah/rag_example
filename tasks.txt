@@ -1,0 +1,5 @@
+// Change The From External API Embedding to Local Model Embedding
+// Make it with PDF
+// Use What we called by PHde + BM25 + Hushing Function 
+// Make Interface for Project Wiht React and fast API
+// Do not Deploy It
