@@ -4,12 +4,11 @@ import Footer from "./components/Footer";
 import Sections from "./components/Sections";
 import HowItWorks from "./components/HowItWorks";
 import ChatWithLLM from "./components/ChatWithLLM";
-
 import { Routes, Route } from "react-router-dom";
 
 function App() {
   return (
-    <div>
+    <div className="h-screen w-full">
       <Routes>
         <Route
           path="/"
