@@ -19,6 +19,8 @@ from dotenv import dotenv_values
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
+
 
 from helpers import (
     generate_embedding_doc,
@@ -31,6 +33,8 @@ from helpers import (
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
+
+
 
 config = dotenv_values(".env")
 GROQ_API_KEY = config.get("GROQ_API_KEY", os.getenv("GROQ_API_KEY", ""))
@@ -79,6 +83,13 @@ app = FastAPI(
     description="HyDE + Hybrid Search (BM25 + ChromaDB) powered by Groq / LLaMA 3",
     version="1.0.0",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -142,6 +153,7 @@ async def upload_pdf(
     Optionally pass a **question** in the form body to get an immediate RAG
     answer after indexing.
     """
+    print("Upload File", file)
     # --- Validate file type ---
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")

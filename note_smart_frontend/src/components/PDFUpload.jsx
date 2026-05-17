@@ -1,177 +1,313 @@
-import { useState, useRef } from 'react';
-import { FiUploadCloud, FiFileText, FiTrash2, FiCheckCircle } from 'react-icons/fi';
+import { useState, useRef } from "react";
+import {
+  FiUploadCloud,
+  FiFile,
+  FiCheckCircle,
+  FiAlertCircle,
+  FiLoader,
+} from "react-icons/fi";
 
-const PDFUpload = () => {
-    const [file, setFile] = useState(null);
-    const [dragging, setDragging] = useState(false);
-    const inputRef = useRef(null);
+const API_BASE = "http://localhost:8000";
 
-    const handleFileChange = (e) => {
-        if (e.target.files[0]) setFile(e.target.files[0]);
-    };
+/**
+ * PDFUpload
+ * Props:
+ *   onIndexed(collectionName: string) — called after successful indexing
+ */
+const PDFUpload = ({ onIndexed }) => {
+  const [file, setFile] = useState(null);
+  const [status, setStatus] = useState("idle"); // idle | uploading | success | error
+  const [message, setMessage] = useState("");
+  const [stats, setStats] = useState(null); // { pages, chunks }
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef(null);
 
-    const handleDrop = (e) => {
-        e.preventDefault();
-        setDragging(false);
-        const f = e.dataTransfer.files[0];
-        if (f?.type === 'application/pdf') setFile(f);
-    };
+  const uploadFile = async (f) => {
+    setFile(f);
+    setStatus("uploading");
+    setMessage("");
+    setStats(null);
 
-    const formatSize = (bytes) => {
-        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-        return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-    };
+    const formData = new FormData();
+    formData.append("file", f);
+    // collection name = file name without extension
+    const collectionName = f.name
+      .replace(/\.pdf$/i, "")
+      .replace(/\s+/g, "_")
+      .toLowerCase();
+    formData.append("collection_name", collectionName);
 
-    return (
-        <div style={{
-            width: '100%', height: '100%',
-            background: '#0d0d0f',
-            display: 'flex', flexDirection: 'column',
-            padding: '40px 36px',
-            fontFamily: "'DM Sans', sans-serif",
-        }}>
-            {/* Header */}
-            <div style={{ marginBottom: 40 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                    <div style={{
-                        width: 8, height: 8, borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #e8624a, #f0a07a)',
-                        boxShadow: '0 0 12px rgba(232,98,74,0.6)'
-                    }} />
-                    <span style={{ fontSize: 11, fontWeight: 500, color: '#e8624a', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                        Source document
-                    </span>
-                </div>
-                <h2 style={{ fontSize: 24, fontWeight: 300, color: '#f0ede8', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-                    Upload your PDF
-                </h2>
-            </div>
+    try {
+      const res = await fetch(`${API_BASE}/upload-pdf`, {
+        method: "POST",
+        body: formData,
+      });
 
-            {/* Drop Zone */}
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || "Upload failed");
+      }
+
+      setStatus("success");
+      setMessage(data.message);
+      setStats({ pages: data.pages_extracted, chunks: data.chunks_indexed });
+      onIndexed?.(collectionName);
+    } catch (err) {
+      setStatus("error");
+      setMessage(err.message);
+    }
+  };
+
+  const onFileChange = (e) => {
+    const f = e.target.files?.[0];
+    if (f) uploadFile(f);
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    setDragging(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f && f.type === "application/pdf") uploadFile(f);
+  };
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        background: "#0d0d0f",
+        display: "flex",
+        flexDirection: "column",
+        padding: "28px 36px",
+        fontFamily: "'DM Sans', sans-serif",
+        boxSizing: "border-box",
+      }}
+    >
+      {/* Header */}
+      <div style={{ marginBottom: 28 }}>
+        <p
+          style={{
+            fontSize: 15,
+            fontWeight: 600,
+            color: "#e8e5e0",
+            marginBottom: 4,
+          }}
+        >
+          Upload Document
+        </p>
+        <p
+          style={{
+            fontSize: 14,
+            fontWeight: "bold",
+            color: "rgba(255,255,255,0.7)",
+          }}
+        >
+          <span className="text-red-800 font-bold">PDF files only · English Only · Small Files Only</span>
+        </p>
+      </div>
+
+      {/* Drop Zone */}
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+        style={{
+          flex: 1,
+          border: `2px dashed ${dragging ? "rgba(94,130,255,0.6)" : "rgba(255,255,255,0.09)"}`,
+          borderRadius: 16,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 16,
+          cursor: "pointer",
+          background: dragging
+            ? "rgba(94,130,255,0.04)"
+            : "rgba(255,255,255,0.02)",
+          transition: "all 0.2s",
+          padding: 32,
+          boxSizing: "border-box",
+        }}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".pdf"
+          style={{ display: "none" }}
+          onChange={onFileChange}
+        />
+
+        {status === "idle" && (
+          <>
             <div
-                onClick={() => !file && inputRef.current.click()}
-                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={handleDrop}
-                style={{
-                    flex: 1,
-                    border: `1.5px dashed ${dragging ? 'rgba(232,98,74,0.6)' : file ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.1)'}`,
-                    borderRadius: 16,
-                    background: dragging
-                        ? 'rgba(232,98,74,0.04)'
-                        : file ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.015)',
-                    display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center',
-                    cursor: file ? 'default' : 'pointer',
-                    transition: 'all 0.2s ease',
-                    padding: 32, gap: 0,
-                    position: 'relative',
-                    overflow: 'hidden',
-                }}
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 14,
+                background: "rgba(94,130,255,0.08)",
+                border: "1px solid rgba(94,130,255,0.15)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
-                {/* Subtle radial glow */}
-                <div style={{
-                    position: 'absolute', inset: 0, pointerEvents: 'none',
-                    background: dragging
-                        ? 'radial-gradient(ellipse at center, rgba(232,98,74,0.06) 0%, transparent 70%)'
-                        : 'radial-gradient(ellipse at center, rgba(255,255,255,0.02) 0%, transparent 70%)',
-                    transition: 'all 0.3s ease'
-                }} />
-
-                {!file ? (
-                    <>
-                        <div style={{
-                            width: 64, height: 64, borderRadius: 16,
-                            background: 'rgba(232,98,74,0.1)',
-                            border: '1px solid rgba(232,98,74,0.2)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            marginBottom: 20,
-                        }}>
-                            <FiUploadCloud size={28} color="#e8624a" />
-                        </div>
-                        <p style={{ fontSize: 15, fontWeight: 500, color: '#c8c5c0', marginBottom: 6 }}>
-                            Drop your PDF here
-                        </p>
-                        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.28)', marginBottom: 24 }}>
-                            or click to browse files
-                        </p>
-                        <div style={{
-                            padding: '8px 20px',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            borderRadius: 8,
-                            fontSize: 12,
-                            fontWeight: 500,
-                            color: 'rgba(255,255,255,0.4)',
-                            letterSpacing: '0.05em',
-                        }}>
-                            PDF only · max 50 MB
-                        </div>
-                    </>
-                ) : (
-                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
-                        {/* File card */}
-                        <div style={{
-                            width: '100%', maxWidth: 360,
-                            background: 'rgba(255,255,255,0.04)',
-                            border: '1px solid rgba(255,255,255,0.08)',
-                            borderRadius: 12, padding: '16px 18px',
-                            display: 'flex', alignItems: 'center', gap: 14,
-                        }}>
-                            <div style={{
-                                width: 44, height: 44, borderRadius: 10,
-                                background: 'rgba(232,98,74,0.12)',
-                                border: '1px solid rgba(232,98,74,0.2)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                flexShrink: 0,
-                            }}>
-                                <FiFileText size={20} color="#e8624a" />
-                            </div>
-                            <div style={{ flex: 1, overflow: 'hidden' }}>
-                                <p style={{
-                                    fontSize: 14, fontWeight: 500, color: '#e8e5e0',
-                                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                                    marginBottom: 2
-                                }}>
-                                    {file.name}
-                                </p>
-                                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>
-                                    {formatSize(file.size)}
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => setFile(null)}
-                                style={{
-                                    background: 'none', border: 'none', cursor: 'pointer',
-                                    color: 'rgba(255,255,255,0.25)', padding: 4,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    borderRadius: 6, transition: 'color 0.15s',
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.color = '#e8624a'}
-                                onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.25)'}
-                                title="Remove file"
-                            >
-                                <FiTrash2 size={16} />
-                            </button>
-                        </div>
-
-                        {/* Ready badge */}
-                        <div style={{
-                            display: 'flex', alignItems: 'center', gap: 7,
-                            padding: '6px 14px',
-                            background: 'rgba(52,199,89,0.08)',
-                            border: '1px solid rgba(52,199,89,0.2)',
-                            borderRadius: 99,
-                        }}>
-                            <FiCheckCircle size={13} color="#34c759" />
-                            <span style={{ fontSize: 12, color: '#34c759', fontWeight: 500 }}>Ready to process</span>
-                        </div>
-                    </div>
-                )}
+              <FiUploadCloud size={24} color="#5e82ff" />
             </div>
+            <div style={{ textAlign: "center" }}>
+              <p
+                style={{
+                  fontSize: 14,
+                  color: "#c8c5c0",
+                  fontWeight: 500,
+                  marginBottom: 6,
+                }}
+              >
+                Drop your PDF here
+              </p>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
+                or click to browse
+              </p>
+            </div>
+          </>
+        )}
 
-            <input ref={inputRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={handleFileChange} />
-        </div>
-    );
+        {status === "uploading" && (
+          <>
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 14,
+                background: "rgba(94,130,255,0.08)",
+                border: "1px solid rgba(94,130,255,0.15)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                animation: "spin 1s linear infinite",
+              }}
+            >
+              <FiLoader size={24} color="#5e82ff" />
+            </div>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
+              Indexing{" "}
+              <strong style={{ color: "#c8c5c0" }}>{file?.name}</strong>…
+            </p>
+          </>
+        )}
+
+        {status === "success" && (
+          <>
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 14,
+                background: "rgba(52,199,89,0.08)",
+                border: "1px solid rgba(52,199,89,0.2)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <FiCheckCircle size={24} color="#34c759" />
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "#34c759",
+                  fontWeight: 500,
+                  marginBottom: 4,
+                }}
+              >
+                {message}
+              </p>
+              {stats && (
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
+                  {stats.pages} pages · {stats.chunks} chunks indexed
+                </p>
+              )}
+              <p
+                style={{
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.2)",
+                  marginTop: 8,
+                }}
+              >
+                Click to upload another
+              </p>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 14px",
+                borderRadius: 10,
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.07)",
+              }}
+            >
+              <FiFile size={13} color="rgba(255,255,255,0.3)" />
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
+                {file?.name}
+              </span>
+            </div>
+          </>
+        )}
+
+        {status === "error" && (
+          <>
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 14,
+                background: "rgba(255,69,58,0.08)",
+                border: "1px solid rgba(255,69,58,0.2)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <FiAlertCircle size={24} color="#ff453a" />
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "#ff453a",
+                  fontWeight: 500,
+                  marginBottom: 4,
+                }}
+              >
+                Upload failed
+              </p>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
+                {message}
+              </p>
+              <p
+                style={{
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.2)",
+                  marginTop: 8,
+                }}
+              >
+                Click to try again
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
 };
 
 export default PDFUpload;
