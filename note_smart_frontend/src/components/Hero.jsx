@@ -6,7 +6,6 @@ const features = [
 export default function Hero() {
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center text-center px-6 py-24 overflow-hidden bg-white dark:bg-neutral-950">
-
       <div className="absolute -top-20 -left-20 w-[420px] h-[420px] rounded-full bg-blue-400 opacity-10 blur-[80px] animate-float-slow pointer-events-none" />
       <div className="absolute -bottom-16 -right-10 w-[300px] h-[300px] rounded-full bg-emerald-400 opacity-10 blur-[70px] animate-float-mid pointer-events-none" />
       <div className="absolute top-1/2 left-[60%] w-[200px] h-[200px] rounded-full bg-indigo-400 opacity-10 blur-[60px] animate-float-fast pointer-events-none" />
@@ -14,7 +13,10 @@ export default function Hero() {
       <h1 className="text-[clamp(2.8rem,8vw,5.5rem)] font-medium tracking-[-0.03em] leading-[1.05] text-neutral-900 dark:text-white mb-5 max-w-3xl">
         Understand
         <br />
-        <span className="bg-[linear-gradient(120deg,#3b82f6,#60a5fa,#34d399,#60a5fa,#3b82f6)] bg-[length:200%_auto] bg-clip-text text-transparent animate-shimmer">
+        <span
+          className="
+bg-[linear-gradient(120deg,#3b82f6,#60a5fa,#34d399,#60a5fa,#3b82f6)] bg-[length:200%_auto] bg-clip-text text-transparent animate-shimmer"
+        >
           Anything
         </span>
       </h1>
